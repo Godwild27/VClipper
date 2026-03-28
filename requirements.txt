@@ -1,0 +1,10 @@
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9
+python-dotenv==1.0.1
+openai>=1.40.0
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
+requests==2.31.0
+aiofiles==23.2.1
+yt-dlp>=2025.01.26

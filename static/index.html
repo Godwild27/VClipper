@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VClipper — AI Video to TikTok Clips</title>
+  <meta name="description" content="Transformez vos longues vidéos en clips TikTok viraux grâce à l'IA." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #000000;
+      --bg2:       #0A0A0A;
+      --bg3:       #111111;
+      --border:    #262626;
+      --accent:    #FFFFFF;
+      --accent2:   #EAEAEA;
+      --text:      #EDEDED;
+      --muted:     #888888;
+      --radius:    8px;
+      --shadow:    0 8px 30px rgba(0,0,0,0.8);
+      --green:     #10b981;
+      --red:       #ef4444;
+      --yellow:    #f59e0b;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
+    .container { max-width: 860px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    header {
+      padding: 32px 0 0;
+      text-align: center;
+    }
+    .logo {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-weight: 700; font-size: 22px; letter-spacing: -0.5px;
+      color: var(--accent);
+    }
+    .logo svg { width: 24px; height: 24px; }
+    .tagline {
+      margin-top: 10px;
+      color: var(--muted); font-size: 15px; font-weight: 400;
+    }
+
+    /* ── Upload zone ──────────────────────────────────────────────── */
+    .upload-section { margin: 40px 0 0; }
+
+    .drop-zone {
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      background: var(--bg2);
+      padding: 48px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s ease;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--muted);
+      background: var(--bg3);
+    }
+
+    .drop-icon {
+      width: 48px; height: 48px; margin: 0 auto 16px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    }
+    .drop-icon svg { width: 24px; height: 24px; fill: var(--accent); }
+
+    .drop-label {
+      font-size: 17px; font-weight: 600; color: var(--text);
+      margin-bottom: 8px;
+    }
+    .drop-hint { font-size: 13px; color: var(--muted); }
+    .drop-formats {
+      display: inline-flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; justify-content: center;
+    }
+    .fmt-badge {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 10px;
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      letter-spacing: .5px; text-transform: uppercase;
+    }
+
+    #file-input { display: none; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; border-radius: 10px; border: none;
+      font-family: inherit; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all .2s; text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+    .btn-primary:hover {
+      background: var(--accent2);
+    }
+    .btn-primary:active { transform: translateY(1px); }
+    .btn-primary:disabled {
+      opacity: .5; cursor: not-allowed;
+    }
+
+    .selected-file {
+      display: none; margin-top: 20px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px 20px;
+      align-items: center; gap: 14px;
+    }
+    .selected-file.show { display: flex; }
+    .file-icon {
+      width: 40px; height: 40px; border-radius: 8px;
+      background: var(--bg3); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .file-icon svg { width: 18px; height: 18px; fill: var(--text); }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-size { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+    .upload-actions { margin-top: 20px; display: flex; gap: 12px; }
+
+    /* ── Modal API Key ────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center; z-index: 1000;
+      opacity: 0; pointer-events: none; transition: opacity 0.3s;
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: auto; }
+    .modal {
+      background: var(--bg2); border: 1px solid var(--border); border-radius: 20px;
+      padding: 32px; width: 100%; max-width: 440px; box-shadow: var(--shadow);
+      transform: translateY(20px); transition: transform 0.3s; text-align: center;
+    }
+    .modal-overlay.show .modal { transform: translateY(0); }
+    .modal h2 { font-size: 22px; margin-bottom: 12px; }
+    .modal p { color: var(--muted); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+    .modal input {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border);
+      padding: 14px 16px; border-radius: 12px; color: white; font-size: 15px;
+      margin-bottom: 16px; outline: none; transition: border-color 0.2s;
+    }
+    .modal input:focus { border-color: var(--accent); }
+    .modal .btn { width: 100%; justify-content: center; }
+
+    /* ── Tabs ─────────────────────────────────────────────────────── */
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--bg3); padding: 4px; border-radius: 12px; }
+    .tab { flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; border-radius: 8px; transition: all .2s; }
+    .tab.active { background: var(--bg2); color: var(--text); box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fade .3s; }
+
+    /* ── URL Input ────────────────────────────────────────────────── */
+    .url-input-wrap { display: flex; gap: 10px; margin-top: 10px; flex-direction: column; }
+    .url-input { width: 100%; padding: 16px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg2); color: var(--text); font-family: inherit; font-size: 15px; outline: none; transition: border .2s; }
+    .url-input:focus { border-color: var(--accent); }
+    .yt-preview { display: none; margin-top: 20px; background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 16px; align-items: center; gap: 16px; }
+    .yt-preview.show { display: flex; }
+    .yt-thumb { width: 120px; height: 68px; border-radius: 8px; object-fit: cover; background: var(--bg2); }
+
+    .progress-section {
+      display: none; margin-top: 28px;
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 28px;
+    }
+    .progress-section.show { display: block; }
+
+    .progress-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px;
+    }
+    .progress-title { font-size: 16px; font-weight: 700; }
+    .step-badge {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 12px; font-weight: 600; color: var(--accent2);
+    }
+
+    .progress-bar-wrap {
+      background: var(--bg3); border-radius: 8px; height: 8px; overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 8px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .5s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+
+    .step-name {
+      font-size: 13px; color: var(--muted); margin-bottom: 20px;
+    }
+    .step-name span { color: var(--accent2); font-weight: 600; }
+
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 8px;
+    }
+    .step-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 8px;
+      background: var(--bg3); border: 1px solid var(--border);
+      font-size: 12px; color: var(--muted);
+      transition: all .3s;
+    }
+    .step-item.active {
+      border-color: rgba(124,106,245,.5); color: var(--accent2);
+      background: rgba(124,106,245,.08);
+    }
+    .step-item.done {
+      border-color: rgba(34,197,94,.3); color: var(--green);
+      background: rgba(34,197,94,.06);
+    }
+    .step-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: var(--muted); transition: background .3s;
+    }
+    .step-item.active .step-dot { background: var(--accent2); animation: pulse 1.2s infinite; }
+    .step-item.done  .step-dot { background: var(--green); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: .3; }
+    }
+
+    /* ── Results ──────────────────────────────────────────────────── */
+    .results-section {
+      display: none; margin-top: 28px;
+    }
+    .results-section.show { display: block; }
+
+    .results-header {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 24px;
+    }
+    .results-title { font-size: 20px; font-weight: 700; }
+    .success-badge {
+      background: var(--bg3); color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 14px;
+      font-size: 12px; font-weight: 600;
+    }
+
+    .clips-grid {
+      display: grid; gap: 24px;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+
+    .clip-card {
+      background: var(--bg2); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      display: flex; flex-direction: column;
+      animation: fadeUp .4s ease both;
+    }
+    .clip-video-player {
+      width: 100%; aspect-ratio: 9/16; background: #000;
+      object-fit: contain; border-bottom: 1px solid var(--border);
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .clip-body { padding: 16px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+
+    .clip-number {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 2px 8px; border-radius: 4px; background: var(--border);
+      font-weight: 700; font-size: 12px; color: var(--text); margin-bottom: 8px;
+    }
+
+    .clip-info { flex: 1; }
+    .clip-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .clip-reason { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    .clip-meta {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px;
+    }
+    .meta-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 6px; padding: 3px 10px;
+      font-size: 11px; font-weight: 500; color: var(--muted);
+    }
+    .meta-tag.score { color: var(--text); border-color: var(--border); }
+    .meta-tag.emotion { color: var(--text); border-color: var(--border); }
+    .meta-tag.duration { color: var(--text); border-color: var(--border); }
+
+    .clip-actions { padding: 0 16px 16px; }
+    .btn-download {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px 20px; border-radius: 8px; border: 1px solid var(--border);
+      font-family: inherit; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .2s;
+      background: var(--bg3); color: var(--text); text-decoration: none; width: 100%;
+    }
+    .btn-download:hover { background: var(--border); }
+    .btn-download svg { width: 14px; height: 14px; fill: var(--text); }
+
+    /* ── Score bar ────────────────────────────────────────────────── */
+    .score-bar {
+      height: 2px; background: var(--border); border-radius: 2px;
+      margin-top: auto; overflow: hidden;
+    }
+    .score-fill {
+      height: 100%; border-radius: 2px;
+      background: var(--accent);
+    }
+
+    /* ── Error ────────────────────────────────────────────────────── */
+    .error-box {
+      display: none; margin-top: 20px;
+      background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25);
+      border-radius: 12px; padding: 16px 20px;
+      color: var(--red); font-size: 14px; line-height: 1.6;
+    }
+    .error-box.show { display: block; }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    footer {
+      margin-top: 64px; padding: 24px 0;
+      text-align: center; color: var(--muted); font-size: 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Spinner (for button) ─────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: white;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .drop-zone { padding: 36px 16px; }
+      .steps-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="10" fill="url(#g1)"/>
+        <polygon points="14,10 26,18 14,26" fill="white"/>
+        <rect x="8" y="10" width="4" height="16" rx="2" fill="white" opacity=".7"/>
+        <defs>
+          <linearGradient id="g1" x1="0" y1="0" x2="36" y2="36">
+            <stop offset="0%" stop-color="#7c6af5"/>
+            <stop offset="100%" stop-color="#a78bfa"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      VClipper
+    </div>
+    <p class="tagline">Transformez vos vidéos longues en clips TikTok viraux grâce à l'IA 🚀</p>
+  </header>
+
+  <!-- Upload / YouTube -->
+  <section class="upload-section">
+    <div class="tabs">
+      <div class="tab active" data-target="tab-file">Fichier Local</div>
+      <div class="tab" data-target="tab-youtube">Lien YouTube</div>
+    </div>
+
+    <!-- Tab 1: Fichier Local -->
+    <div class="tab-content active" id="tab-file">
+      <div class="drop-zone" id="drop-zone" role="button" tabindex="0">
+        <div class="drop-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+        </div>
+        <p class="drop-label">Glissez votre vidéo ici</p>
+        <p class="drop-hint">ou cliquez pour sélectionner un fichier</p>
+        <div class="drop-formats">
+          <span class="fmt-badge">MP4</span>
+          <span class="fmt-badge">MKV</span>
+          <span class="fmt-badge">MOV</span>
+        </div>
+      </div>
+      <input type="file" id="file-input" accept="video/mp4,video/x-matroska,video/quicktime,video/avi,video/webm" />
+
+      <div class="selected-file" id="selected-file">
+        <div class="file-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+          </svg>
+        </div>
+        <div class="file-info">
+          <div class="file-name" id="file-name-display">video.mp4</div>
+          <div class="file-size" id="file-size-display">0 MB</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: YouTube -->
+    <div class="tab-content" id="tab-youtube">
+      <div class="url-input-wrap">
+        <input type="url" class="url-input" id="yt-url" placeholder="Collez le lien YouTube ici (ex: https://youtu.be/...)" />
+        <button class="btn btn-primary" id="check-yt-btn" style="align-self: flex-start;">Vérifier le lien</button>
+      </div>
+
+      <div class="yt-preview" id="yt-preview">
+        <img id="yt-thumb" class="yt-thumb" src="" alt="Miniature" />
+        <div class="file-info">
+          <div class="file-name" id="yt-title">Titre de la vidéo</div>
+          <div class="file-size" id="yt-duration">Durée inconnue</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="upload-actions">
+      <button class="btn btn-primary" id="upload-btn" disabled>
+        <span id="btn-content">Analyser avec l'IA →</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- Error box -->
+  <div class="error-box" id="error-box"></div>
+
+  <!-- Progress -->
+  <section class="progress-section" id="progress-section">
+    <div class="progress-header">
+      <div class="progress-title">⚙️ Traitement en cours…</div>
+      <div class="step-badge" id="step-counter">Étape 0 / 13</div>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progress-bar"></div>
+    </div>
+    <div class="step-name">Étape en cours : <span id="current-step-name">Initialisation</span></div>
+
+    <div class="steps-grid" id="steps-grid">
+      <!-- Steps injected by JS -->
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section class="results-section" id="results-section">
+    <div class="results-header">
+      <div class="results-title">Vos clips sont prêts 🎬</div>
+      <div class="success-badge" id="clips-count">0 clips</div>
+    </div>
+    <div class="clips-grid" id="clips-grid">
+      <!-- Clip cards injected by JS -->
+    </div>
+  </section>
+
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="api-modal">
+  <div class="modal">
+    <h2>🔑 Clé API NVIDIA Requise</h2>
+    <p>VClipper utilise le modèle surpuissant NVIDIA Nemotron-120B pour analyser et découper vos vidéos. Veuillez entrer votre clé API NVIDIA pour l'activer.</p>
+    <input type="password" id="api-key-input" placeholder="nvapi-..." />
+    <button class="btn btn-primary" id="save-api-btn">Enregistrer la clé</button>
+    <div id="api-error" style="color: var(--red); font-size: 13px; margin-top: 12px; display: none;"></div>
+    <p style="margin-top: 16px; font-size: 12px;"><a href="https://build.nvidia.com/explore/discover" target="_blank" style="color: var(--accent2); text-decoration: none;">Obtenir une clé API gratuite →</a></p>
+  </div>
+</div>
+
+<footer>
+  <p>VClipper — Propulsé par NVIDIA Nemotron &amp; OpenCV &nbsp;•&nbsp; <span id="public-url-display"></span></p>
+</footer>
+
+<script>
+// ── Constants ───────────────────────────────────────────────────────────────
+const STEP_NAMES = [
+  "", // 0 = init
+  "Validation vidéo",
+  "Extraction audio",
+  "Transcription IA",
+  "Segmentation",
+  "Analyse Nemotron (viralité)",
+  "Sélection des clips",
+  "Découpe des segments",
+  "Détection des visages",
+  "Tracking CSRT",
+  "Reframe 9:16",
+  "Génération sous-titres",
+  "Incrustation sous-titres",
+  "Export final",
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let selectedFile = null;
+let selectedYtUrl = null;
+let currentMode = 'file'; // 'file' or 'youtube'
+let currentJobId = null;
+let pollInterval = null;
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const tabs           = document.querySelectorAll('.tab');
+const tabContents    = document.querySelectorAll('.tab-content');
+const ytUrlInput     = document.getElementById('yt-url');
+const checkYtBtn     = document.getElementById('check-yt-btn');
+const ytPreview      = document.getElementById('yt-preview');
+const ytTitle        = document.getElementById('yt-title');
+const ytDuration     = document.getElementById('yt-duration');
+const ytThumb        = document.getElementById('yt-thumb');
+
+const dropZone       = document.getElementById('drop-zone');
+const fileInput      = document.getElementById('file-input');
+const selectedFileEl = document.getElementById('selected-file');
+const fileNameEl     = document.getElementById('file-name-display');
+const fileSizeEl     = document.getElementById('file-size-display');
+
+const uploadBtn      = document.getElementById('upload-btn');
+const btnContent     = document.getElementById('btn-content');
+const errorBox       = document.getElementById('error-box');
+const progressSec    = document.getElementById('progress-section');
+const resultsSec     = document.getElementById('results-section');
+const stepCounter    = document.getElementById('step-counter');
+const progressBar    = document.getElementById('progress-bar');
+const currentStepEl  = document.getElementById('current-step-name');
+const stepsGrid      = document.getElementById('steps-grid');
+const clipsGrid      = document.getElementById('clips-grid');
+const clipsCount     = document.getElementById('clips-count');
+
+// ── Tabs logic ─────────────────────────────────────────────────────────────
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tabContents.forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.target).classList.add('active');
+    
+    currentMode = tab.dataset.target === 'tab-youtube' ? 'youtube' : 'file';
+    validateReadyState();
+    hideError();
+  });
+});
+
+function validateReadyState() {
+  if (currentMode === 'file') {
+    uploadBtn.disabled = !selectedFile;
+  } else {
+    uploadBtn.disabled = !selectedYtUrl;
+  }
+}
+
+// ── Build steps grid ─────────────────────────────────────────────────────────
+function buildStepsGrid() {
+  stepsGrid.innerHTML = '';
+  for (let i = 1; i <= 13; i++) {
+    const el = document.createElement('div');
+    el.className = 'step-item';
+    el.id = `step-item-${i}`;
+    el.innerHTML = `<div class="step-dot"></div><span>${STEP_NAMES[i]}</span>`;
+    stepsGrid.appendChild(el);
+  }
+}
+buildStepsGrid();
+
+// ── Format file size ─────────────────────────────────────────────────────────
+function formatSize(bytes) {
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024*1024)).toFixed(1) + ' MB';
+  return (bytes / (1024*1024*1024)).toFixed(2) + ' GB';
+}
+
+// ── File selection ────────────────────────────────────────────────────────────
+function handleFileSelect(file) {
+  if (!file || !file.type.startsWith('video/')) {
+    showError('Veuillez sélectionner un fichier vidéo valide (MP4, MKV, MOV, AVI, WEBM).');
+    return;
+  }
+  selectedFile = file;
+  fileNameEl.textContent = file.name;
+  fileSizeEl.textContent = formatSize(file.size);
+  selectedFileEl.classList.add('show');
+  selectedYtUrl = null;
+  validateReadyState();
+  hideError();
+}
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fileInput.click(); });
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFileSelect(e.target.files[0]); });
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) handleFileSelect(file);
+});
+
+// ── YouTube Check ─────────────────────────────────────────────────────────────
+checkYtBtn.addEventListener('click', async () => {
+  const url = ytUrlInput.value.trim();
+  if (!url) return;
+  
+  hideError();
+  checkYtBtn.disabled = true;
+  checkYtBtn.textContent = 'Vérification...';
+  
+  try {
+    const res = await fetch(`/video-info?url=${encodeURIComponent(url)}`);
+    const data = await res.json();
+    
+    if (!res.ok) throw new Error(data.detail || 'URL invalide ou privée.');
+    
+    selectedYtUrl = url;
+    ytTitle.textContent = data.title;
+    ytDuration.textContent = formatTime(data.duration);
+    if (data.thumbnail) ytThumb.src = data.thumbnail;
+    ytPreview.classList.add('show');
+    
+    validateReadyState();
+  } catch (err) {
+    showError(err.message);
+    selectedYtUrl = null;
+    ytPreview.classList.remove('show');
+    validateReadyState();
+  } finally {
+    checkYtBtn.disabled = false;
+    checkYtBtn.textContent = 'Vérifier le lien';
+  }
+});
+
+// ── Upload / Process ─────────────────────────────────────────────────────────
+uploadBtn.addEventListener('click', async () => {
+  if (currentMode === 'file' && !selectedFile) return;
+  if (currentMode === 'youtube' && !selectedYtUrl) return;
+  
+  hideError();
+  setLoading(true);
+
+  try {
+    let res, data;
+    
+    if (currentMode === 'file') {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      res = await fetch('/upload', { method: 'POST', body: formData });
+    } else {
+      res = await fetch('/upload-url', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({url: selectedYtUrl}) 
+      });
+    }
+    
+    // Cloudflare renvoie parfois du HTML (erreur 413 Payload Too Large) si le fichier dépasse 100MB
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      data = await res.json();
+    } else {
+      const htmlError = await res.text();
+      if (res.status === 413 || htmlError.includes("413") || htmlError.includes("Too Large")) {
+        throw new Error("Fichier trop volumineux. Cloudflare limite les transferts à 100 Mo. Solution : Téléversez votre vidéo sur YouTube et utilisez l'option 'Lien YouTube'.");
+      }
+      throw new Error(`Erreur réseau (${res.status}). Le serveur a renvoyé un format inattendu. Si le fichier est très lourd, passez par un lien YouTube.`);
+    }
+
+    if (!res.ok) throw new Error(data.detail || 'Erreur serveur.');
+
+    currentJobId = data.job_id;
+    showProgress();
+    startPolling();
+  } catch (err) {
+    showError(`❌ ${err.message}`);
+    setLoading(false);
+  }
+});
+
+// ── Progress polling ──────────────────────────────────────────────────────────
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(pollStatus, 2500);
+}
+
+async function pollStatus() {
+  if (!currentJobId) return;
+  try {
+    const res  = await fetch(`/status/${currentJobId}`);
+    const data = await res.json();
+    updateProgress(data);
+
+    if (data.status === 'done') {
+      clearInterval(pollInterval);
+      showResults(data.clips);
+      setLoading(false);
+    } else if (data.status === 'failed') {
+      clearInterval(pollInterval);
+      showError(`❌ Traitement échoué : ${data.error}`);
+      setLoading(false);
+    }
+  } catch (err) {
+    // Ignorer les erreurs réseau temporaires
+  }
+}
+
+// ── UI helpers ────────────────────────────────────────────────────────────────
+function setLoading(loading) {
+  uploadBtn.disabled = loading;
+  btnContent.innerHTML = loading
+    ? '<div class="spinner"></div> Traitement en cours…'
+    : 'Analyser avec l\'IA →';
+}
+
+function showProgress() {
+  progressSec.classList.add('show');
+  resultsSec.classList.remove('show');
+}
+
+function updateProgress(data) {
+  const step = data.step || 0;
+  const pct  = Math.round((step / 13) * 100);
+
+  progressBar.style.width = pct + '%';
+  stepCounter.textContent = `Étape ${step} / 13`;
+  currentStepEl.textContent = data.step_name + (data.detail ? ' ' + data.detail : '');
+
+  // Mettre à jour visuellement chaque step
+  for (let i = 1; i <= 13; i++) {
+    const el = document.getElementById(`step-item-${i}`);
+    el.className = 'step-item' + (i < step ? ' done' : i === step ? ' active' : '');
+  }
+}
+
+function showResults(clips) {
+  if (!clips || clips.length === 0) {
+    showError('Aucun clip généré. Essayez avec une vidéo plus longue ou plus engageante.');
+    return;
+  }
+
+  resultsSec.classList.add('show');
+  clipsCount.textContent = `${clips.length} clip${clips.length > 1 ? 's' : ''}`;
+
+  clipsGrid.innerHTML = clips.map((clip, idx) => `
+    <div class="clip-card" style="animation-delay:${idx * 0.1}s">
+      <video class="clip-video-player" controls preload="metadata" src="/download/${clip.filename}" poster=""></video>
+      <div class="clip-body">
+        <div class="clip-info">
+          <div class="clip-number">Clip ${idx + 1}</div>
+          <div class="clip-title">${clip.raison || 'Moment viral détecté par l\'IA'}</div>
+          <div class="clip-meta">
+            <span class="meta-tag score">Score ${clip.score}/10</span>
+            ${clip.emotion ? `<span class="meta-tag emotion">${clip.emotion}</span>` : ''}
+            <span class="meta-tag duration">${clip.duration}s</span>
+            <span class="meta-tag">${clip.has_face ? 'Face tracking' : 'Object crop'}</span>
+          </div>
+        </div>
+        <div class="score-bar">
+          <div class="score-fill" style="width:${(clip.score / 10) * 100}%"></div>
+        </div>
+      </div>
+      <div class="clip-actions">
+        <a class="btn-download" href="/download/${clip.filename}" download="${clip.filename}">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+          </svg>
+          Télécharger MP4
+        </a>
+      </div>
+    </div>
+  `).join('');
+}
+
+function formatTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = Math.floor(secs % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function showError(msg) {
+  errorBox.textContent = msg;
+  errorBox.classList.add('show');
+}
+function hideError() {
+  errorBox.classList.remove('show');
+}
+
+// ── Show public URL and Check API Key ──────────────────────────────────────────
+(async () => {
+  try {
+    const res  = await fetch('/health');
+    const data = await res.json();
+    
+    // Afficher l'URL publique
+    if (data.public_url && data.public_url.startsWith('https://')) {
+      document.getElementById('public-url-display').textContent = '🌐 ' + data.public_url;
+    }
+    
+    // Vérifier si Nvidia est configuré
+    if (data.nvidia_ok === false) {
+      document.getElementById('api-modal').classList.add('show');
+    }
+  } catch {}
+})();
+
+// ── NVIDIA API Key Flow ───────────────────────────────────────────────────────
+const apiModal = document.getElementById('api-modal');
+const apiInput = document.getElementById('api-key-input');
+const apiSaveBtn = document.getElementById('save-api-btn');
+const apiError = document.getElementById('api-error');
+
+apiSaveBtn.addEventListener('click', async () => {
+  const key = apiInput.value.trim();
+  if (!key) return;
+  
+  apiSaveBtn.disabled = true;
+  apiSaveBtn.textContent = 'Enregistrement...';
+  apiError.style.display = 'none';
+
+  try {
+    const res = await fetch('/api-key', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ api_key: key })
+    });
+    const data = await res.json();
+    
+    if (!res.ok) throw new Error(data.detail || 'Erreur lors de la sauvegarde');
+    
+    // Succès ! On cache la popup
+    apiModal.classList.remove('show');
+  } catch (err) {
+    apiError.textContent = err.message;
+    apiError.style.display = 'block';
+  } finally {
+    apiSaveBtn.disabled = false;
+    apiSaveBtn.textContent = 'Enregistrer la clé';
+  }
+});
+
+</script>
+</body>
+</html>

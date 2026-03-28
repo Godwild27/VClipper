@@ -1,0 +1,26 @@
+{
+  "name": "vclipper-ai",
+  "version": "1.0.0",
+  "description": "Transformez automatiquement vos vidéos longues en clips TikTok viraux grâce à l'IA.",
+  "main": "bin/vclipper.js",
+  "bin": {
+    "vclipper": "./bin/vclipper.js"
+  },
+  "scripts": {
+    "start": "node ./bin/vclipper.js"
+  },
+  "keywords": [
+    "video",
+    "tiktok",
+    "ai",
+    "gemini",
+    "opencv",
+    "clipper",
+    "shorts"
+  ],
+  "author": "Votre Nom",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
